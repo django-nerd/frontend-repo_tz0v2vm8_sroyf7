@@ -1,30 +1,55 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import JobCard from './JobCard'
 
-function FeaturedJobs({ query }) {
-  const [jobs, setJobs] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [filters, setFilters] = useState({ category: 'all', remote: true })
-
-  const backend = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
-
-  const fetchJobs = async () => {
-    setLoading(true)
-    const params = new URLSearchParams()
-    if (query) params.set('q', query)
-    if (filters.category && filters.category !== 'all') params.set('category', filters.category)
-    if (filters.remote !== undefined) params.set('remote', filters.remote)
-    params.set('featured', true)
-
-    const res = await fetch(`${backend}/api/jobs?${params.toString()}`)
-    const data = await res.json()
-    setJobs(data.items || [])
-    setLoading(false)
+// Using mock data only for now
+const mockJobs = [
+  {
+    title: 'Junior Frontend Engineer',
+    company: 'Nova Labs',
+    location: 'Remote (US/EU)',
+    type: 'Full-time',
+    remote: true,
+    featured: true,
+    category: 'engineering',
+    description:
+      'Work with a small team to build delightful web experiences. You\'ll ship accessible UI, optimize performance, and learn modern tooling.',
+    salary_min: 65000,
+    salary_max: 90000,
+    currency: 'USD',
+    apply_url: 'https://example.com/apply/frontend-intern'
   }
+]
+
+function FeaturedJobs({ query = '', category }) {
+  const [filters, setFilters] = useState({ category: category || 'all', remote: true })
 
   useEffect(() => {
-    fetchJobs()
+    // keep internal filter in sync when parent category changes
+    if (category && category !== filters.category) {
+      setFilters((f) => ({ ...f, category }))
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category])
+
+  const filtered = useMemo(() => {
+    let items = [...mockJobs]
+
+    if (filters.category && filters.category !== 'all') {
+      items = items.filter((j) => j.category === filters.category)
+    }
+    if (filters.remote) {
+      items = items.filter((j) => j.remote)
+    }
+    if (query) {
+      const q = query.toLowerCase()
+      items = items.filter(
+        (j) =>
+          j.title.toLowerCase().includes(q) ||
+          j.company.toLowerCase().includes(q) ||
+          j.description.toLowerCase().includes(q)
+      )
+    }
+    return items
   }, [query, filters])
 
   return (
@@ -55,12 +80,8 @@ function FeaturedJobs({ query }) {
         </div>
 
         <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {loading ? (
-            Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-40 rounded-2xl bg-slate-200/60 dark:bg-white/5 animate-pulse" />
-            ))
-          ) : jobs.length ? (
-            jobs.map((job, i) => <JobCard key={i} job={job} />)
+          {filtered.length ? (
+            filtered.map((job, i) => <JobCard key={i} job={job} />)
           ) : (
             <div className="col-span-full text-slate-600 dark:text-white/70">No jobs found. Try adjusting your filters.</div>
           )}
